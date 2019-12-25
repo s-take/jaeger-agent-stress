@@ -1,11 +1,19 @@
+FROM debian:jessie as builder
+
+# intall gcc and supporting packages
+RUN apt-get update && apt-get install -yq make gcc
+
+WORKDIR /code
+
+# download stress-ng sources
+ENV STRESS_VER=0.09.41
+ADD https://github.com/ColinIanKing/stress-ng/archive/V${STRESS_VER}.tar.gz .
+RUN tar -xf V${STRESS_VER}.tar.gz && mv stress-ng-${STRESS_VER} stress-ng
+
+# make static version
+WORKDIR /code/stress-ng
+RUN STATIC=1 make
+
 FROM jaegertracing/jaeger-agent
 
-ENV STRESS_VERSION=1.0.4
-
-RUN apk add --update bash g++ make curl && \
-  curl -o /tmp/stress-${STRESS_VERSION}.tgz https://people.seas.harvard.edu/~apw/stress/stress-${STRESS_VERSION}.tar.gz && \
-  cd /tmp && tar xvf stress-${STRESS_VERSION}.tgz && rm /tmp/stress-${STRESS_VERSION}.tgz && \
-  cd /tmp/stress-${STRESS_VERSION} && \
-  ./configure && make && make install && \
-  apk del g++ make curl && \
-  rm -rf /tmp/* /var/tmp/* /var/cache/apk/* /var/cache/distfiles/*
+COPY --from=builder /code/stress-ng/stress-ng /usr/local/bin/
